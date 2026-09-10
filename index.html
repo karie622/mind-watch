@@ -1,0 +1,419 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>思维监控 · 觉察日志</title>
+<style>
+:root{--bg:#f5f1ea;--panel:#fff;--ink:#3d3d3d;--muted:#8c8c8c;--line:#ebe5dd;
+  --primary:#c75c48;--primary-soft:#f9eae7;--green:#5a9a6d;--green-soft:#e8f4ec;--amber:#c9923d;--amber-soft:#faf3e3}
+*{box-sizing:border-box}
+body{margin:0;padding:18px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif;
+  background:var(--bg);color:var(--ink)}
+.wrap{max-width:760px;margin:0 auto}
+h1{font-size:19px;margin:0 0 4px}
+.sub{font-size:12.5px;color:var(--muted);margin-bottom:14px;line-height:1.7}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:14px}
+.stats{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.stat{flex:1;min-width:110px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+.stat .num{font-size:24px;font-weight:700}
+.stat .lab{font-size:12px;color:var(--muted);margin-top:2px}
+textarea,input[type=text],input[type=password]{width:100%;padding:11px 13px;border:1px solid var(--line);border-radius:10px;
+  font-size:14px;font-family:inherit;background:#fff;color:var(--ink);resize:vertical;outline:none}
+textarea:focus,input:focus{border-color:var(--amber)}
+textarea{min-height:84px}
+.row{display:flex;align-items:center;gap:12px;margin-top:10px;flex-wrap:wrap}
+.chk{display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;color:var(--ink)}
+.chk input{width:16px;height:16px;accent-color:var(--amber)}
+button{padding:9px 22px;border:0;border-radius:9px;background:var(--amber);color:#fff;font-size:14px;
+  cursor:pointer;font-family:inherit}
+button:hover{filter:brightness(1.06)}
+button:disabled{opacity:.5;cursor:default}
+button.link{background:#eee8df;color:var(--ink);padding:6px 14px;font-size:12.5px}
+.ai-box{margin-top:12px;border-radius:11px;padding:12px 14px;font-size:13.5px;line-height:1.8;display:none}
+.ai-loop{background:var(--primary-soft);border:1px solid #ecc8c0}
+.ai-new{background:var(--green-soft);border:1px solid #c4ddce}
+.ai-bt{background:var(--amber-soft);border:1px solid #ecd9ac}
+.ai-box .tag{display:inline-block;font-size:12px;font-weight:700;padding:2px 10px;border-radius:20px;margin-bottom:6px}
+.ai-loop .tag{background:var(--primary);color:#fff}
+.ai-new .tag{background:var(--green);color:#fff}
+.ai-bt .tag{background:var(--amber);color:#fff}
+.quote{margin-top:8px;padding:8px 11px;background:rgba(255,255,255,.7);border-left:3px solid var(--amber);
+  border-radius:6px;font-size:12.5px;color:#6b5d3f}
+.tl{list-style:none;margin:0;padding:0}
+.tl li{padding:12px 4px;border-bottom:1px solid var(--line)}
+.tl li:last-child{border-bottom:0}
+.t-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:5px}
+.t-time{font-size:11.5px;color:var(--muted)}
+.t-tag{font-size:11.5px;padding:1px 9px;border-radius:20px;background:#eee8df;color:#7a6f5f}
+.t-tag.loop{background:var(--primary);color:#fff}
+.t-tag.bt{background:var(--amber);color:#fff}
+.t-text{font-size:13.5px;line-height:1.75}
+.t-prompt{margin-top:7px;font-size:12.5px;color:var(--primary);background:var(--primary-soft);
+  border-radius:8px;padding:8px 11px;line-height:1.7}
+.t-bt-quote{margin-top:7px;font-size:12.5px;color:#6b5d3f;background:var(--amber-soft);
+  border-left:3px solid var(--amber);border-radius:6px;padding:7px 11px;line-height:1.7}
+.empty{color:var(--muted);font-size:13px;text-align:center;padding:24px 0}
+.err{background:var(--primary-soft);color:var(--primary);border-radius:9px;padding:9px 12px;
+  font-size:12.5px;margin-top:10px;display:none}
+.t-del{margin-left:auto;font-size:11.5px;color:var(--muted);cursor:pointer;padding:1px 8px;border-radius:20px}
+.t-del:hover{background:var(--primary-soft);color:var(--primary)}
+details.setup{margin-bottom:14px}
+details.setup summary{cursor:pointer;font-size:13px;color:var(--muted);padding:6px 0;list-style:none}
+details.setup summary::-webkit-details-marker{display:none}
+details.setup summary:before{content:"⚙ "}
+.set-row{margin-top:12px}
+.set-row label{font-size:12.5px;color:var(--muted);display:block;margin-bottom:5px;font-weight:600}
+.hint{font-size:11.5px;color:var(--muted);line-height:1.7;margin-top:5px}
+.sync-status{font-size:12px;margin-top:8px;color:var(--muted)}
+.sync-status.ok{color:var(--green)}
+.sync-status.err{color:var(--primary)}
+.bar{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🧭 思维监控</h1>
+  <div class="sub">记录当下的思维/情绪状态。AI 会识别重复的思维循环，并用<b>你自己当时「想通的原话」</b>把你拉出来。<br>
+  数据只存在这台设备的浏览器里，同步走你自己的私有 Gist。</div>
+
+  <div class="stats">
+    <div class="stat"><div class="num" id="st-total">–</div><div class="lab">总记录</div></div>
+    <div class="stat"><div class="num" id="st-bt" style="color:var(--amber)">–</div><div class="lab">想通瞬间</div></div>
+    <div class="stat"><div class="num" id="st-loop" style="color:var(--primary)">–</div><div class="lab">循环警示</div></div>
+  </div>
+
+  <div class="card">
+    <textarea id="t-input" placeholder="此刻脑子里在想什么？什么情绪？在循环什么念头？…（写大白话就行）"></textarea>
+    <div class="row">
+      <label class="chk"><input type="checkbox" id="t-bt"> 💡 这是一瞬间想通了（存为顿悟，日后循环时用它提醒我）</label>
+      <button id="t-save" onclick="saveThought()">记 录</button>
+    </div>
+    <div class="err" id="t-err"></div>
+    <div class="ai-box" id="ai-box"></div>
+  </div>
+
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+      <div style="font-size:14px;font-weight:600">觉察时间线</div>
+      <button class="link" onclick="render()">刷新</button>
+    </div>
+    <ul class="tl" id="tl"><li class="empty">加载中…</li></ul>
+  </div>
+
+  <details class="setup" id="setup">
+    <summary>设置（密钥 / 认知内核 / 同步）</summary>
+    <div class="card" style="margin-top:8px">
+      <div class="set-row">
+        <label>DeepSeek API Key</label>
+        <input type="password" id="s-key" placeholder="sk-…（只存在这台设备的浏览器，不进代码、不上传）">
+        <div class="hint">没有 key 也能记录，只是不做 AI 分析。可在 platform.deepseek.com 申请。</div>
+      </div>
+      <div class="set-row">
+        <label>认知内核（判断思维模式的标尺）</label>
+        <textarea id="s-kernel" placeholder="把你的 kernel.md 内容粘进来…" style="min-height:110px;font-size:12.5px"></textarea>
+        <div class="bar">
+          <button class="link" onclick="pickKernel()">从本地文件导入</button>
+          <button class="link" onclick="saveSetup()">保存</button>
+        </div>
+        <input type="file" id="s-kernel-file" accept=".md,.txt" style="display:none">
+      </div>
+      <div class="set-row">
+        <label>GitHub Gist 令牌（用于多设备同步）</label>
+        <input type="password" id="s-token" placeholder="ghp_…（需勾选 gist 权限）">
+        <div class="hint">数据存在<b>你自己的私有 Gist</b> 里，别人看不到。不填则只存在本机。</div>
+        <div class="bar">
+          <button class="link" onclick="saveSetup()">保存令牌</button>
+          <button class="link" onclick="syncNow()">立即同步</button>
+          <label class="chk" style="font-size:12.5px"><input type="checkbox" id="s-auto"> 记录后自动同步</label>
+        </div>
+      </div>
+      <div class="sync-status" id="syncStatus"></div>
+      <div class="set-row">
+        <label>数据 export / import</label>
+        <div class="bar">
+          <button class="link" onclick="exportJson()">导出 JSON 备份</button>
+          <button class="link" onclick="pickImport()">导入 JSON</button>
+        </div>
+        <input type="file" id="s-import-file" accept=".json" style="display:none">
+      </div>
+    </div>
+  </details>
+</div>
+<script>
+const LS_THOUGHTS='mw_thoughts', LS_KEY='mw_ai_key', LS_KERNEL='mw_kernel',
+      LS_TOKEN='mw_gist_token', LS_ID='mw_gist_id', LS_AUTO='mw_auto_sync';
+const GIST_FN='mind-watch-data.json';
+const API='https://api.deepseek.com/chat/completions';
+const FIELDS=['pattern','isLoop','matchedId','matchedQuote','prompt','breakthroughSummary'];
+
+let thoughts=[];
+let syncing=false;
+
+function $(id){return document.getElementById(id);}
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function isLoop(v){return String(v).trim().toLowerCase()==='true';}
+function nowStr(){const d=new Date(),p=n=>String(n).padStart(2,'0');
+  return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds());}
+function newId(){const d=new Date(),p=n=>String(n).padStart(2,'0');
+  return ''+d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+'-'+p(d.getHours())+p(d.getMinutes())+p(d.getSeconds())+p(Math.floor(Math.random()*100));}
+
+function load(){try{thoughts=JSON.parse(localStorage.getItem(LS_THOUGHTS))||[];}catch(e){thoughts=[];}}
+function save(){localStorage.setItem(LS_THOUGHTS,JSON.stringify(thoughts));}
+function visible(){return thoughts.filter(t=>!t.deleted).sort((a,b)=>String(b.ts||'').localeCompare(String(a.ts||'')));}
+
+function render(){
+  const ts=visible();
+  $('st-total').textContent=ts.length;
+  $('st-bt').textContent=ts.filter(t=>t.isBreakthrough).length;
+  $('st-loop').textContent=ts.filter(t=>isLoop((t.ai||{}).isLoop)).length;
+  const tl=$('tl');
+  if(!ts.length){tl.innerHTML='<li class="empty">还没有记录。从上面的输入框开始。</li>';return;}
+  tl.innerHTML=ts.map(t=>{
+    const ai=t.ai||{};
+    const loop=isLoop(ai.isLoop);
+    let tag=t.isBreakthrough?'<span class="t-tag bt">💡 想通瞬间</span>'
+           :loop?'<span class="t-tag loop">🔁 '+esc(ai.pattern||'循环')+'</span>'
+           :(ai.pattern?'<span class="t-tag">'+esc(ai.pattern)+'</span>':'');
+    let extra='';
+    if(loop&&ai.prompt)extra+='<div class="t-prompt">'+esc(ai.prompt)+(ai.matchedQuote?'<div class="quote">你当时说：'+esc(ai.matchedQuote)+'</div>':'')+'</div>';
+    if(t.isBreakthrough&&ai.breakthroughSummary)extra+='<div class="t-bt-quote">📌 顿悟要点：'+esc(ai.breakthroughSummary)+'</div>';
+    return '<li><div class="t-head"><span class="t-time">'+esc((t.ts||'').slice(0,16))+'</span>'+tag
+         + '<span class="t-del" onclick="delThought(\''+esc(t.id)+'\')">删除</span></div>'
+         + '<div class="t-text">'+esc(t.text)+'</div>'+extra+'</li>';
+  }).join('');
+}
+
+function delThought(id){
+  if(!confirm('删除这条记录？（删除后循环匹配就不再参考它，会同步到其他设备）'))return;
+  const t=thoughts.find(x=>x.id===id);
+  if(t){t.deleted=true;t.updatedAt=nowStr();save();render();if(autoSync())syncNow(true);}
+}
+
+async function saveThought(){
+  const text=$('t-input').value.trim();
+  const err=$('t-err'),box=$('ai-box');
+  err.style.display='none';box.style.display='none';
+  if(!text){err.textContent='先写点什么再记录';err.style.display='block';return;}
+  const bt=$('t-bt').checked;
+  const btn=$('t-save');
+  btn.disabled=true;btn.textContent='分析中…';
+  const item={id:newId(),ts:nowStr(),updatedAt:nowStr(),text:text.slice(0,2000),isBreakthrough:bt,ai:{}};
+  thoughts.push(item);save();
+  try{
+    item.ai=await analyze(text,bt);
+    item.updatedAt=nowStr();save();
+    const ai=item.ai,loop=isLoop(ai.isLoop);
+    box.className='ai-box '+(bt?'ai-bt':(loop?'ai-loop':'ai-new'));
+    box.style.display='block';
+    let html='<span class="tag">'+(bt?'💡 想通瞬间已存档':(loop?'🔁 检测到思维循环':'✅ 已记录'))+'</span>';
+    if(ai.pattern)html+='<div><b>模式：</b>'+esc(ai.pattern)+'</div>';
+    if(ai.prompt)html+='<div style="margin-top:6px">'+esc(ai.prompt)+'</div>';
+    if(loop&&ai.matchedQuote)html+='<div class="quote">你当时说：'+esc(ai.matchedQuote)+'</div>';
+    if(bt&&ai.breakthroughSummary)html+='<div class="quote" style="border-color:var(--green)">📌 顿悟要点：'+esc(ai.breakthroughSummary)+'</div>';
+    box.innerHTML=html;
+  }catch(e){
+    err.textContent='已保存，但 AI 分析失败：'+e.message;err.style.display='block';
+  }finally{
+    btn.disabled=false;btn.textContent='记 录';
+    $('t-input').value='';$('t-bt').checked=false;render();
+    if(autoSync())syncNow(true);
+  }
+}
+
+async function analyze(text,isBt){
+  const key=localStorage.getItem(LS_KEY)||'';
+  if(!key)return {};
+  const kernel=localStorage.getItem(LS_KERNEL)||'';
+  const hist=visible();
+  const breaks=hist.filter(t=>t.isBreakthrough&&t.text).slice(-20);
+  const recent=hist.filter(t=>!t.isBreakthrough).slice(-30);
+  const P=[];
+  P.push('【用户的认知内核（判断思维模式的标尺）】\n'+(kernel||'（暂无）'));
+  P.push('\n【用户的历史『想通瞬间』（用于提醒）】');
+  P.push(breaks.length?breaks.map(t=>'- ['+String(t.ts||'').slice(0,16)+'] #'+t.id+' '+t.text.slice(0,200)).join('\n'):'（还没有想通瞬间的记录）');
+  P.push('\n【最近 30 条思维记录（用于循环匹配）】');
+  P.push(recent.length?recent.map(t=>{const p=(t.ai||{}).pattern||'';
+    return '- ['+String(t.ts||'').slice(0,16)+'] #'+t.id+' '+(p?p+'｜':'')+String(t.text||'').slice(0,100);}).join('\n'):'（暂无）');
+  P.push('\n【当前记录】\n'+text.slice(0,800));
+  P.push('\n是否想通瞬间标记: '+(isBt?'是':'否'));
+
+  const system='你是用户的觉察助手，帮用户监控重复的思维模式和情绪循环。阅读用户当下的记录，只输出严格 JSON（不要额外文字），字段：'
+    +'pattern(用 1-2 个词命名当前的思维/情绪模式，优先参考内核的高频主题词，如：认可渴求、死亡焦虑、投射、观念茧房、情绪共振；'
+    +'若用户标记了『想通瞬间』，此处写「顿悟·」+主题词)，'
+    +'isLoop(true/false：当前状态是否在重复历史中已出现过的同类模式——判断标准是模式名相同或本质相同，单纯的日常记录不算循环，要避免过度报警)，'
+    +'matchedId(若 isLoop=true，填最匹配的那条历史记录的 #id，否则空字符串)，'
+    +'matchedQuote(若 isLoop=true，引用那条历史记录的原话片段，≤60 字)，'
+    +'prompt(给用户的纠正提示，2-3 句：若循环，提醒他『你在重复 X 模式』并用他自己当时的『想通瞬间』原话拉他出来；'
+    +'若标记想通瞬间，肯定这个突破并提醒『下次陷入时回来读这条』；若是普通新状态，给一句温和的觉察建议。语气第一人称视角、口语化、不说教)、'
+    +'breakthroughSummary(若标记想通瞬间，把这次顿悟提炼成一句日后可复述的要点，≤60 字；否则空字符串)。';
+
+  const res=await fetch(API,{method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
+    body:JSON.stringify({model:'deepseek-chat',messages:[{role:'system',content:system},{role:'user',content:P.join('\n')}],max_tokens:500})});
+  if(!res.ok){let m='HTTP '+res.status;try{const j=await res.json();m=(j.error&&j.error.message)||m;}catch(e){}
+    throw new Error(m);}
+  const j=await res.json();
+  let raw=(j.choices&&j.choices[0]&&j.choices[0].message&&j.choices[0].message.content)||'';
+  raw=raw.replace(/^```(?:json)?/i,'').replace(/```$/,'').trim();
+  let data;try{data=JSON.parse(raw);}catch(e){throw new Error('AI 返回格式异常');}
+  const out={};
+  FIELDS.forEach(k=>out[k]=String(data[k]==null?'':data[k]).trim());
+  out.isLoop=String(out.isLoop||'').toLowerCase()==='true';
+  if(!out.isLoop){out.matchedId='';out.matchedQuote='';}
+  return out;
+}
+
+function autoSync(){return localStorage.getItem(LS_AUTO)==='1';}
+function getToken(){return localStorage.getItem(LS_TOKEN)||'';}
+function getGistId(){return localStorage.getItem(LS_ID)||'';}
+function setGistId(i){i?localStorage.setItem(LS_ID,i):localStorage.removeItem(LS_ID);}
+function status(msg,kind){const el=$('syncStatus');el.textContent=msg;el.className='sync-status'+(kind?' '+kind:'');}
+function ghFetch(url,opts){
+  opts=opts||{};
+  opts.headers=Object.assign({Authorization:'token '+getToken(),'Content-Type':'application/json'},opts.headers||{});
+  return fetch(url,opts);
+}
+function pruneTombstones(){
+  const cut=Date.now()-60*864e5;
+  thoughts=thoughts.filter(t=>{
+    if(!t.deleted)return true;
+    const d=new Date(String(t.updatedAt||'').replace(/-/g,'/')).getTime();
+    return !(d&&d<cut);
+  });
+}
+function mergeThoughts(local,remote){
+  const map=new Map();
+  (local||[]).concat(remote||[]).forEach(t=>{
+    if(!t||!t.id)return;
+    const cur=map.get(t.id);
+    if(!cur){map.set(t.id,t);return;}
+    const a=String(t.updatedAt||t.ts||''),b=String(cur.updatedAt||cur.ts||'');
+    if(a.localeCompare(b)>0)map.set(t.id,t);
+  });
+  return Array.from(map.values());
+}
+function buildPayload(){
+  return JSON.stringify({app:'思维监控',version:1,syncedAt:new Date().toISOString(),
+    kernel:localStorage.getItem(LS_KERNEL)||'',thoughts:thoughts});
+}
+async function findSyncGist(){
+  try{
+    const r=await ghFetch('https://api.github.com/gists?per_page=100');
+    if(!r.ok)return null;
+    const list=await r.json();
+    if(!Array.isArray(list))return null;
+    let best=null,bestCount=-1,bestTime='';
+    for(const g of list){
+      if(!g.files||!g.files[GIST_FN])continue;
+      const dr=await ghFetch(g.url);
+      if(!dr.ok)continue;
+      const d=await dr.json();
+      const f=d.files&&d.files[GIST_FN];
+      if(!f||!f.content)continue;
+      let n=0,synced='';
+      try{const p=JSON.parse(f.content);
+        n=Array.isArray(p.thoughts)?p.thoughts.length:(p.thoughts?Object.keys(p.thoughts).length:0);
+        synced=p.syncedAt||d.updated_at||'';}catch(e){continue;}
+      if(n>bestCount||(n===bestCount&&synced>bestTime)){best=g.id;bestCount=n;bestTime=synced;}
+    }
+    return best?{id:best,count:bestCount}:null;
+  }catch(e){return null;}
+}
+async function pullFromGist(){
+  const id=getGistId();if(!id)return null;
+  const r=await ghFetch('https://api.github.com/gists/'+id);
+  if(!r.ok)throw new Error('拉取失败('+r.status+')');
+  const d=await r.json();
+  const f=d.files&&d.files[GIST_FN];
+  if(!f||!f.content)return{};
+  return JSON.parse(f.content);
+}
+async function pushToGist(){
+  const content=buildPayload(),id=getGistId();
+  if(id){
+    const r=await ghFetch('https://api.github.com/gists/'+id,{method:'PATCH',
+      body:JSON.stringify({files:{[GIST_FN]:{content:content}}})});
+    if(!r.ok)throw new Error('上传失败('+r.status+')');
+  }else{
+    const r=await ghFetch('https://api.github.com/gists',{method:'POST',
+      body:JSON.stringify({description:'思维监控 · 数据同步',public:false,files:{[GIST_FN]:{content:content}}})});
+    if(!r.ok)throw new Error('创建失败('+r.status+')');
+    setGistId((await r.json()).id);
+  }
+}
+async function syncNow(silent){
+  if(syncing)return;
+  if(!getToken()){status('请先粘贴并保存 gist 令牌','err');return;}
+  syncing=true;
+  if(!silent)status('同步中…');
+  try{
+    const best=await findSyncGist();
+    if(best&&best.id!==getGistId())setGistId(best.id);
+    const remote=await pullFromGist();
+    if(remote){
+      if(remote.thoughts)thoughts=mergeThoughts(thoughts,remote.thoughts);
+      if(remote.kernel&&!localStorage.getItem(LS_KERNEL))localStorage.setItem(LS_KERNEL,remote.kernel);
+      pruneTombstones();save();
+    }
+    await pushToGist();
+    status('已同步 · 共 '+visible().length+' 条（'+new Date().toLocaleString()+'）','ok');
+    render();
+  }catch(e){status('同步出错：'+e.message,'err');}
+  finally{syncing=false;}
+}
+function saveSetup(){
+  const k=$('s-key').value.trim();
+  if(k&&!/^已保存/.test(k))localStorage.setItem(LS_KEY,k);
+  localStorage.setItem(LS_KERNEL,$('s-kernel').value);
+  const t=$('s-token').value.trim();
+  if(t&&!/^已保存/.test(t))localStorage.setItem(LS_TOKEN,t);
+  localStorage.setItem(LS_AUTO,$('s-auto').checked?'1':'0');
+  status('设置已保存到本机','ok');
+}
+function pickKernel(){$('s-kernel-file').click();}
+function pickImport(){$('s-import-file').click();}
+function exportJson(){
+  const blob=new Blob([JSON.stringify({app:'思维监控',version:1,exportedAt:new Date().toISOString(),
+    kernel:localStorage.getItem(LS_KERNEL)||'',thoughts:thoughts},null,2)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='思维监控备份-'+nowStr().slice(0,10)+'.json';
+  a.click();URL.revokeObjectURL(a.href);
+}
+function setupFiles(){
+  $('s-kernel-file').addEventListener('change',e=>{
+    const f=e.target.files[0];if(!f)return;
+    const r=new FileReader();
+    r.onload=()=>{$('s-kernel').value=String(r.result).slice(0,6000);saveSetup();status('认知内核已导入并保存','ok');};
+    r.readAsText(f,'utf-8');e.target.value='';
+  });
+  $('s-import-file').addEventListener('change',e=>{
+    const f=e.target.files[0];if(!f)return;
+    const r=new FileReader();
+    r.onload=()=>{
+      try{
+        const d=JSON.parse(String(r.result));
+        if(!d.thoughts)throw new Error('文件里没有 thoughts 字段');
+        thoughts=mergeThoughts(thoughts,d.thoughts);
+        if(d.kernel)localStorage.setItem(LS_KERNEL,d.kernel);
+        save();render();status('已导入，共 '+visible().length+' 条','ok');
+      }catch(err){status('导入失败：'+err.message,'err');}
+    };
+    r.readAsText(f,'utf-8');e.target.value='';
+  });
+}
+function initSetup(){
+  const k=localStorage.getItem(LS_KEY)||'';
+  if(k)$('s-key').value='已保存（'+k.slice(0,4)+'…'+k.slice(-4)+'）';
+  $('s-kernel').value=localStorage.getItem(LS_KERNEL)||'';
+  const t=getToken();
+  if(t)$('s-token').value='已保存（'+t.slice(0,4)+'…'+t.slice(-4)+'）';
+  $('s-auto').checked=autoSync();
+  if(getGistId())status('已绑定同步 Gist，可立即同步','ok');
+}
+load();render();initSetup();setupFiles();
+if(getToken())syncNow(true);
+</script>
+</body>
+</html>
