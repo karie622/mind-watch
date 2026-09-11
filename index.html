@@ -102,6 +102,14 @@ details.setup summary:before{content:"⚙ "}
 
   <div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+      <div style="font-size:14px;font-weight:600">觉察时间线</div>
+      <div><button class="link" onclick="render()">刷新</button><button class="link" id="tl-toggle" onclick="toggleSec('colTL')">收起 ▲</button></div>
+    </div>
+    <ul class="tl" id="tl"><li class="empty">加载中…</li></ul>
+  </div>
+
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
       <div style="font-size:14px;font-weight:600">🩹 错误思维修正 <span style="font-size:12px;font-weight:400;color:var(--muted)">记录反复出现的错误思维，AI 对照你的认知内核生成正确观念</span></div>
       <button class="link" id="bug-toggle" onclick="toggleSec('colBugs')">收起 ▲</button>
     </div>
@@ -114,14 +122,6 @@ details.setup summary:before{content:"⚙ "}
     </div>
     <div class="err" id="b-err"></div>
     <ul class="tl" id="bug-list" style="margin-top:6px"></ul>
-  </div>
-
-  <div class="card">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-      <div style="font-size:14px;font-weight:600">觉察时间线</div>
-      <div><button class="link" onclick="render()">刷新</button><button class="link" id="tl-toggle" onclick="toggleSec('colTL')">收起 ▲</button></div>
-    </div>
-    <ul class="tl" id="tl"><li class="empty">加载中…</li></ul>
   </div>
 
   <details class="setup" id="setup">
