@@ -87,7 +87,6 @@ details.setup summary:before{content:"⚙ "}
     <div class="stat"><div class="num" id="st-total">–</div><div class="lab">总记录</div></div>
     <div class="stat"><div class="num" id="st-bt" style="color:var(--amber)">–</div><div class="lab">想通瞬间</div></div>
     <div class="stat"><div class="num" id="st-loop" style="color:var(--primary)">–</div><div class="lab">循环警示</div></div>
-    <div class="stat"><div class="num" id="st-bug" style="color:var(--green)">–</div><div class="lab">错误思维</div></div>
   </div>
 
   <div class="card">
@@ -108,21 +107,6 @@ details.setup summary:before{content:"⚙ "}
     <ul class="tl" id="tl"><li class="empty">加载中…</li></ul>
   </div>
 
-  <div class="card">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-      <div style="font-size:14px;font-weight:600">🩹 错误思维修正 <span style="font-size:12px;font-weight:400;color:var(--muted)">记录反复出现的错误思维，AI 对照你的认知内核生成正确观念</span></div>
-    </div>
-    <textarea id="b-input" style="min-height:64px" placeholder="写下那个反复出现的错误思维原话，例如：他没回我消息，肯定是讨厌我了"></textarea>
-    <input type="text" id="b-scene" style="margin-top:8px" placeholder="什么场景/触发？（可选，例如：等回复时）">
-    <div class="row">
-      <button id="b-save" onclick="saveBug()">记 录</button>
-      <button class="link" onclick="loadPreset()">📥 载入 30 条预设清单</button>
-      <button class="link" id="bug-toggle" onclick="toggleSec('colBugs')">收起 ▲</button>
-      <span style="font-size:12px;color:var(--muted)">记录后点每条的「⚡ 对照内核修正」生成正确观念（需在设置里填 DeepSeek Key 和认知内核）</span>
-    </div>
-    <div class="err" id="b-err"></div>
-    <ul class="tl" id="bug-list" style="margin-top:6px"></ul>
-  </div>
 
   <details class="setup" id="setup">
     <summary>设置（密钥 / 认知内核 / 同步）</summary>
@@ -198,8 +182,6 @@ function render(){
   $('st-total').textContent=ts.length;
   $('st-bt').textContent=ts.filter(t=>t.isBreakthrough).length;
   $('st-loop').textContent=ts.filter(t=>isLoop((t.ai||{}).isLoop)).length;
-  $('st-bug').textContent=visibleBugs().length;
-  renderBugs();
   const tl=$('tl');
   if(!ts.length){tl.innerHTML='<li class="empty">还没有记录。从上面的输入框开始。</li>';return;}
   tl.innerHTML=ts.map(t=>{
