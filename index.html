@@ -69,6 +69,12 @@ details.setup summary:before{content:"⚙ "}
 .sync-status.ok{color:var(--green)}
 .sync-status.err{color:var(--primary)}
 .bar{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.bug-raw{font-size:13.5px;line-height:1.75}
+.bug-scene{margin-top:4px;font-size:12px;color:var(--muted)}
+.bug-cor{margin-top:8px;background:var(--green-soft);border:1px solid #c4ddce;border-radius:10px;padding:10px 12px;font-size:13px;line-height:1.8}
+.bug-cor .lb{font-weight:700;color:var(--green)}
+.bug-basis{margin-top:6px;font-size:12px;color:#5c6b5f;background:rgba(255,255,255,.65);border-left:3px solid var(--green);border-radius:6px;padding:6px 10px;line-height:1.7}
+.bug-empty-cor{margin-top:8px;font-size:12.5px;color:var(--muted);background:#f7f3ec;border-radius:10px;padding:9px 12px}
 </style>
 </head>
 <body>
@@ -81,6 +87,7 @@ details.setup summary:before{content:"⚙ "}
     <div class="stat"><div class="num" id="st-total">–</div><div class="lab">总记录</div></div>
     <div class="stat"><div class="num" id="st-bt" style="color:var(--amber)">–</div><div class="lab">想通瞬间</div></div>
     <div class="stat"><div class="num" id="st-loop" style="color:var(--primary)">–</div><div class="lab">循环警示</div></div>
+    <div class="stat"><div class="num" id="st-bug" style="color:var(--green)">–</div><div class="lab">错误思维</div></div>
   </div>
 
   <div class="card">
@@ -91,6 +98,18 @@ details.setup summary:before{content:"⚙ "}
     </div>
     <div class="err" id="t-err"></div>
     <div class="ai-box" id="ai-box"></div>
+  </div>
+
+  <div class="card">
+    <div style="font-size:14px;font-weight:600;margin-bottom:6px">🩹 错误思维修正 <span style="font-size:12px;font-weight:400;color:var(--muted)">记录反复出现的错误思维，AI 对照你的认知内核生成正确观念</span></div>
+    <textarea id="b-input" style="min-height:64px" placeholder="写下那个反复出现的错误思维原话，例如：他没回我消息，肯定是讨厌我了"></textarea>
+    <input type="text" id="b-scene" style="margin-top:8px" placeholder="什么场景/触发？（可选，例如：等回复时）">
+    <div class="row">
+      <button id="b-save" onclick="saveBug()">记 录</button>
+      <span style="font-size:12px;color:var(--muted)">记录后点每条的「⚡ 对照内核修正」生成正确观念（需在设置里填 DeepSeek Key 和认知内核）</span>
+    </div>
+    <div class="err" id="b-err"></div>
+    <ul class="tl" id="bug-list" style="margin-top:6px"></ul>
   </div>
 
   <div class="card">
@@ -134,6 +153,7 @@ details.setup summary:before{content:"⚙ "}
         <div class="bar">
           <button class="link" onclick="exportJson()">导出 JSON 备份</button>
           <button class="link" onclick="pickImport()">导入 JSON</button>
+          <button class="link" onclick="syncToWorkbench()">⬆ 同步到工作台（认知迭代用）</button>
         </div>
         <input type="file" id="s-import-file" accept=".json" style="display:none">
       </div>
@@ -142,12 +162,15 @@ details.setup summary:before{content:"⚙ "}
 </div>
 <script>
 const LS_THOUGHTS='mw_thoughts', LS_KEY='mw_ai_key', LS_KERNEL='mw_kernel',
-      LS_TOKEN='mw_gist_token', LS_ID='mw_gist_id', LS_AUTO='mw_auto_sync';
+      LS_TOKEN='mw_gist_token', LS_ID='mw_gist_id', LS_AUTO='mw_auto_sync',
+      LS_BUGS='mw_bugs';
 const GIST_FN='mind-watch-data.json';
 const API='https://api.deepseek.com/chat/completions';
 const FIELDS=['pattern','isLoop','matchedId','matchedQuote','prompt','breakthroughSummary'];
+const BUG_FIELDS=['name','correction','basis','practice'];
 
 let thoughts=[];
+let bugs=[];
 let syncing=false;
 
 function $(id){return document.getElementById(id);}
@@ -158,15 +181,20 @@ function nowStr(){const d=new Date(),p=n=>String(n).padStart(2,'0');
 function newId(){const d=new Date(),p=n=>String(n).padStart(2,'0');
   return ''+d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+'-'+p(d.getHours())+p(d.getMinutes())+p(d.getSeconds())+p(Math.floor(Math.random()*100));}
 
-function load(){try{thoughts=JSON.parse(localStorage.getItem(LS_THOUGHTS))||[];}catch(e){thoughts=[];}}
+function load(){try{thoughts=JSON.parse(localStorage.getItem(LS_THOUGHTS))||[];}catch(e){thoughts=[];}
+  try{bugs=JSON.parse(localStorage.getItem(LS_BUGS))||[];}catch(e){bugs=[];}}
 function save(){localStorage.setItem(LS_THOUGHTS,JSON.stringify(thoughts));}
+function saveBugs(){localStorage.setItem(LS_BUGS,JSON.stringify(bugs));}
 function visible(){return thoughts.filter(t=>!t.deleted).sort((a,b)=>String(b.ts||'').localeCompare(String(a.ts||'')));}
+function visibleBugs(){return bugs.filter(b=>!b.deleted).sort((a,b)=>String(b.ts||'').localeCompare(String(a.ts||'')));}
 
 function render(){
   const ts=visible();
   $('st-total').textContent=ts.length;
   $('st-bt').textContent=ts.filter(t=>t.isBreakthrough).length;
   $('st-loop').textContent=ts.filter(t=>isLoop((t.ai||{}).isLoop)).length;
+  $('st-bug').textContent=visibleBugs().length;
+  renderBugs();
   const tl=$('tl');
   if(!ts.length){tl.innerHTML='<li class="empty">还没有记录。从上面的输入框开始。</li>';return;}
   tl.innerHTML=ts.map(t=>{
@@ -188,6 +216,92 @@ function delThought(id){
   if(!confirm('删除这条记录？（删除后循环匹配就不再参考它，会同步到其他设备）'))return;
   const t=thoughts.find(x=>x.id===id);
   if(t){t.deleted=true;t.updatedAt=nowStr();save();render();if(autoSync())syncNow(true);}
+}
+
+/* ---------- 错误思维修正 ---------- */
+function renderBugs(){
+  const list=$('bug-list'),bs=visibleBugs();
+  if(!bs.length){list.innerHTML='<li class="empty">还没有记录错误思维。写下那个反复冒出来的念头。</li>';return;}
+  list.innerHTML=bs.map(b=>{
+    const c=b.correction||{};
+    let cor='';
+    if(c.correction){
+      cor='<div class="bug-cor"><span class="lb">✅ 正确观念（对照内核生成）</span><div>'+esc(c.correction)+'</div>'
+        +(c.basis?'<div class="bug-basis">📎 内核依据：'+esc(c.basis)+'</div>':'')
+        +(c.practice?'<div class="bug-basis" style="border-color:var(--amber)">🛠 事中练习：'+esc(c.practice)+'</div>':'')+'</div>';
+    }else{
+      cor='<div class="bug-empty-cor">尚未修正——点「⚡ 对照内核修正」，AI 会依据你的认知内核生成正确观念。</div>';
+    }
+    return '<li><div class="t-head"><span class="t-time">'+esc((b.ts||'').slice(0,16))+'</span>'
+      +(b.name?'<span class="t-tag" style="background:var(--green);color:#fff">'+esc(b.name)+'</span>':'')
+      +'<span class="t-del" onclick="delBug(\''+esc(b.id)+'\')">删除</span></div>'
+      +'<div class="bug-raw">❌ '+esc(b.wrong)+'</div>'
+      +(b.scene?'<div class="bug-scene">场景：'+esc(b.scene)+'</div>':'')
+      +cor
+      +'<div class="bar"><button class="link" onclick="correctBug(\''+esc(b.id)+'\')">'+(c.correction?'↻ 重新修正':'⚡ 对照内核修正')+'</button></div>'
+      +'</li>';
+  }).join('');
+}
+
+function saveBug(){
+  const wrong=$('b-input').value.trim();
+  const err=$('b-err');
+  err.style.display='none';
+  if(!wrong){err.textContent='先写下错误思维的原话';err.style.display='block';return;}
+  bugs.push({id:newId(),ts:nowStr(),updatedAt:nowStr(),wrong:wrong.slice(0,600),
+    scene:$('b-scene').value.trim().slice(0,200),name:'',correction:null});
+  saveBugs();render();
+  $('b-input').value='';$('b-scene').value='';
+}
+
+function delBug(id){
+  if(!confirm('删除这条错误思维记录？（会同步到其他设备）'))return;
+  const b=bugs.find(x=>x.id===id);
+  if(b){b.deleted=true;b.updatedAt=nowStr();saveBugs();render();if(autoSync())syncNow(true);}
+}
+
+async function correctBug(id){
+  const b=bugs.find(x=>x.id===id);
+  if(!b)return;
+  const key=localStorage.getItem(LS_KEY)||'';
+  const kernel=localStorage.getItem(LS_KERNEL)||'';
+  if(!kernel){alert('请先在「设置」里粘贴你的认知内核（kernel.md 内容），修正才有依据。');return;}
+  if(!key){alert('请先在「设置」里填写 DeepSeek API Key。');return;}
+  const btns=document.querySelectorAll('#bug-list .link');
+  btns.forEach(x=>{if(x.getAttribute('onclick')&&x.getAttribute('onclick').indexOf(id)>=0){x.disabled=true;x.textContent='修正中…';}});
+  try{
+    const breaks=visible().filter(t=>t.isBreakthrough&&t.text).slice(-15);
+    const P=[];
+    P.push('【用户的认知内核】\n'+kernel.slice(0,5000));
+    P.push('\n【用户历史「想通瞬间」】');
+    P.push(breaks.length?breaks.map(t=>'- '+t.text.slice(0,120)).join('\n'):'（暂无）');
+    P.push('\n【待修正的错误思维】');
+    P.push('错误思维原话：'+b.wrong);
+    if(b.scene)P.push('触发场景：'+b.scene);
+    P.push('\n请基于认知内核修正这个错误思维。只输出严格 JSON（不要额外文字），字段：'
+      +'name(给这个错误思维模式命名，2-4 个字，参考内核高频主题词如 认可渴求/投射/死亡焦虑/观念茧房)，'
+      +'correction(用第一人称写的正确观念，2-3 句，口语化、有力，符合内核的反常识风格，不说教不鸡汤)，'
+      +'basis(内核依据：指出这来自内核的哪条观点或哪个部分，≤50 字)，'
+      +'practice(下次这个念头冒出来时，当场可做的一个具体练习或替换句，≤60 字)。');
+    const res=await fetch(API,{method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
+      body:JSON.stringify({model:'deepseek-chat',messages:[
+        {role:'system',content:'你是用户的认知修正助手。严格基于用户提供的认知内核，把他的错误思维修正为符合内核的正确观念。只输出严格 JSON。'},
+        {role:'user',content:P.join('\n')}],max_tokens:400})});
+    if(!res.ok){let m='HTTP '+res.status;try{const j=await res.json();m=(j.error&&j.error.message)||m;}catch(e){}throw new Error(m);}
+    const j=await res.json();
+    let raw=(j.choices&&j.choices[0]&&j.choices[0].message&&j.choices[0].message.content)||'';
+    raw=raw.replace(/^```(?:json)?/i,'').replace(/```$/,'').trim();
+    let data;try{data=JSON.parse(raw);}catch(e){throw new Error('AI 返回格式异常');}
+    const out={};
+    BUG_FIELDS.forEach(k=>out[k]=String(data[k]==null?'':data[k]).trim());
+    if(!out.correction)throw new Error('AI 未返回修正内容');
+    b.name=out.name;b.correction=out;b.updatedAt=nowStr();
+    saveBugs();render();
+  }catch(e){
+    alert('修正失败：'+e.message);
+    render();
+  }
 }
 
 async function saveThought(){
@@ -276,11 +390,13 @@ function ghFetch(url,opts){
 }
 function pruneTombstones(){
   const cut=Date.now()-60*864e5;
-  thoughts=thoughts.filter(t=>{
+  const keep=t=>{
     if(!t.deleted)return true;
     const d=new Date(String(t.updatedAt||'').replace(/-/g,'/')).getTime();
     return !(d&&d<cut);
-  });
+  };
+  thoughts=thoughts.filter(keep);
+  bugs=bugs.filter(keep);
 }
 function mergeThoughts(local,remote){
   const map=new Map();
@@ -295,7 +411,7 @@ function mergeThoughts(local,remote){
 }
 function buildPayload(){
   return JSON.stringify({app:'思维监控',version:1,syncedAt:new Date().toISOString(),
-    kernel:localStorage.getItem(LS_KERNEL)||'',thoughts:thoughts});
+    kernel:localStorage.getItem(LS_KERNEL)||'',thoughts:thoughts,bugs:bugs});
 }
 async function findSyncGist(){
   try{
@@ -353,11 +469,12 @@ async function syncNow(silent){
     const remote=await pullFromGist();
     if(remote){
       if(remote.thoughts)thoughts=mergeThoughts(thoughts,remote.thoughts);
+      if(remote.bugs)bugs=mergeThoughts(bugs,remote.bugs);
       if(remote.kernel&&!localStorage.getItem(LS_KERNEL))localStorage.setItem(LS_KERNEL,remote.kernel);
-      pruneTombstones();save();
+      pruneTombstones();save();saveBugs();
     }
     await pushToGist();
-    status('已同步 · 共 '+visible().length+' 条（'+new Date().toLocaleString()+'）','ok');
+    status('已同步 · 感悟 '+visible().length+' 条 · 错误思维 '+visibleBugs().length+' 条（'+new Date().toLocaleString()+'）','ok');
     render();
   }catch(e){status('同步出错：'+e.message,'err');}
   finally{syncing=false;}
@@ -375,11 +492,26 @@ function pickKernel(){$('s-kernel-file').click();}
 function pickImport(){$('s-import-file').click();}
 function exportJson(){
   const blob=new Blob([JSON.stringify({app:'思维监控',version:1,exportedAt:new Date().toISOString(),
-    kernel:localStorage.getItem(LS_KERNEL)||'',thoughts:thoughts},null,2)],{type:'application/json'});
+    kernel:localStorage.getItem(LS_KERNEL)||'',thoughts:thoughts,bugs:bugs},null,2)],{type:'application/json'});
   const a=document.createElement('a');
   a.href=URL.createObjectURL(blob);
   a.download='思维监控备份-'+nowStr().slice(0,10)+'.json';
   a.click();URL.revokeObjectURL(a.href);
+}
+async function syncToWorkbench(){
+  const ts=visible(),bs=visibleBugs();
+  if(!ts.length&&!bs.length){status('还没有可同步的记录','err');return;}
+  status('同步中…（感悟 '+ts.length+' 条 · 错误思维 '+bs.length+' 条）');
+  try{
+    const r=await fetch('http://localhost:8000/api/mind/save',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({thoughts:ts,bugs:bs})});
+    const j=await r.json();
+    if(!r.ok)throw new Error(j.error||('HTTP '+r.status));
+    status('✓ 已同步到工作台：感悟新增 '+j.added+' 条、错误思维新增 '+(j.bugs_added||0)+' 条（其余已同步过），落盘 内容数据库/思维监控/'+j.file,'ok');
+  }catch(e){
+    status('同步失败：'+e.message+'（请确认本机已运行 start_workbench.bat）','err');
+  }
 }
 function setupFiles(){
   $('s-kernel-file').addEventListener('change',e=>{
@@ -394,10 +526,11 @@ function setupFiles(){
     r.onload=()=>{
       try{
         const d=JSON.parse(String(r.result));
-        if(!d.thoughts)throw new Error('文件里没有 thoughts 字段');
-        thoughts=mergeThoughts(thoughts,d.thoughts);
+        if(!d.thoughts&&!d.bugs)throw new Error('文件里没有 thoughts/bugs 字段');
+        if(d.thoughts)thoughts=mergeThoughts(thoughts,d.thoughts);
+        if(d.bugs)bugs=mergeThoughts(bugs,d.bugs);
         if(d.kernel)localStorage.setItem(LS_KERNEL,d.kernel);
-        save();render();status('已导入，共 '+visible().length+' 条','ok');
+        save();saveBugs();render();status('已导入，感悟 '+visible().length+' 条 · 错误思维 '+visibleBugs().length+' 条','ok');
       }catch(err){status('导入失败：'+err.message,'err');}
     };
     r.readAsText(f,'utf-8');e.target.value='';
