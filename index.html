@@ -111,13 +111,13 @@ details.setup summary:before{content:"⚙ "}
   <div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
       <div style="font-size:14px;font-weight:600">🩹 错误思维修正 <span style="font-size:12px;font-weight:400;color:var(--muted)">记录反复出现的错误思维，AI 对照你的认知内核生成正确观念</span></div>
-      <button class="link" id="bug-toggle" onclick="toggleSec('colBugs')">收起 ▲</button>
     </div>
     <textarea id="b-input" style="min-height:64px" placeholder="写下那个反复出现的错误思维原话，例如：他没回我消息，肯定是讨厌我了"></textarea>
     <input type="text" id="b-scene" style="margin-top:8px" placeholder="什么场景/触发？（可选，例如：等回复时）">
     <div class="row">
       <button id="b-save" onclick="saveBug()">记 录</button>
       <button class="link" onclick="loadPreset()">📥 载入 30 条预设清单</button>
+      <button class="link" id="bug-toggle" onclick="toggleSec('colBugs')">收起 ▲</button>
       <span style="font-size:12px;color:var(--muted)">记录后点每条的「⚡ 对照内核修正」生成正确观念（需在设置里填 DeepSeek Key 和认知内核）</span>
     </div>
     <div class="err" id="b-err"></div>
