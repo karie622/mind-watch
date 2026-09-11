@@ -70,6 +70,23 @@ details.setup summary:before{content:"⚙ "}
     <div class="stat"><div class="num" id="st-bug" style="color:var(--green)">–</div><div class="lab">错误思维</div></div>
   </div>
 
+  <div class="card" id="kernel-card">
+    <div class="row" style="margin-top:0">
+      <div style="font-size:14px;font-weight:600">🧠 认知内核 <span style="font-size:12px;font-weight:400;color:var(--muted)">对照修正的标尺 · 可手动载入后直接修改</span></div>
+      <button class="link" id="kernel-toggle" onclick="toggleSec('colKernel')">收起 ▲</button>
+    </div>
+    <div id="kernel-body" style="margin-top:8px">
+      <textarea id="kernel-edit" placeholder="这里放你的认知内核（kernel.md 内容）。点「📂 从文件载入」导入，或直接粘贴；改完点「💾 保存内核」。" style="min-height:150px;font-size:12.5px"></textarea>
+      <div class="bar">
+        <button class="link" onclick="pickKernelFile()">📂 从文件载入</button>
+        <button onclick="saveKernel()">💾 保存内核</button>
+        <button class="link" onclick="clearKernel()">↺ 清空</button>
+        <span id="kernel-info" style="font-size:12px;color:var(--muted)">未载入</span>
+      </div>
+      <input type="file" id="kernel-file" accept=".md,.txt,.json" style="display:none">
+    </div>
+  </div>
+
   <div class="card">
     <textarea id="b-input" placeholder="写下那个反复出现的错误思维原话，例如：他没回我消息，肯定是讨厌我了"></textarea>
     <input type="text" id="b-scene" style="margin-top:8px" placeholder="什么场景/触发？（可选，例如：等回复时）">
@@ -77,7 +94,7 @@ details.setup summary:before{content:"⚙ "}
       <button id="b-save" onclick="saveBug()">记 录</button>
       <button class="link" onclick="loadPreset()">📥 载入 30 条预设清单</button>
       <button class="link" id="bug-toggle" onclick="toggleSec('colBugs')">收起 ▲</button>
-      <span style="font-size:12px;color:var(--muted)">记录后点每条的「⚡ 对照内核修正」生成正确观念（需在设置里填 DeepSeek Key 和认知内核）</span>
+      <span style="font-size:12px;color:var(--muted)">记录后点每条的「⚡ 对照内核修正」生成正确观念（先在上方🧠载入认知内核，并在设置里填 DeepSeek Key）</span>
     </div>
     <div class="err" id="b-err"></div>
     <ul class="tl" id="bug-list" style="margin-top:6px"></ul>
@@ -89,16 +106,7 @@ details.setup summary:before{content:"⚙ "}
       <div class="set-row">
         <label>DeepSeek API Key</label>
         <input type="password" id="s-key" placeholder="sk-…（只存在这台设备的浏览器，不进代码、不上传）">
-        <div class="hint">没有 key 也能记录，只是不做 AI 分析。可在 platform.deepseek.com 申请。</div>
-      </div>
-      <div class="set-row">
-        <label>认知内核（判断思维模式的标尺）</label>
-        <textarea id="s-kernel" placeholder="把你的 kernel.md 内容粘进来…" style="min-height:110px;font-size:12.5px"></textarea>
-        <div class="bar">
-          <button class="link" onclick="pickKernel()">从本地文件导入</button>
-          <button class="link" onclick="saveSetup()">保存</button>
-        </div>
-        <input type="file" id="s-kernel-file" accept=".md,.txt" style="display:none">
+        <div class="hint">没有 key 也能记录，只是不做 AI 分析。可在 platform.deepseek.com 申请。<br>认知内核在上方「🧠 认知内核」卡片里手动载入与编辑。</div>
       </div>
       <div class="set-row">
         <label>GitHub Gist 令牌（用于多设备同步）</label>
@@ -184,14 +192,35 @@ function saveBug(){
 function uiState(){try{return JSON.parse(localStorage.getItem(LS_UI))||{};}catch(e){return {};}}
 function saveUI(u){localStorage.setItem(LS_UI,JSON.stringify(u));}
 function applyUI(){
-  const u=uiState();
-  const el=$('bug-list');if(!el)return;
-  const col=!!u.colBugs;
-  el.style.display=col?'none':'';
-  const b=$('bug-toggle');if(b)b.textContent=col?'展开 ▼':'收起 ▲';
+  COLLAPSIBLE.forEach(({key,body,btn})=>{
+    const el=$(body);if(!el)return;
+    const col=!!uiState()[key];
+    el.style.display=col?'none':'';
+    const b=$(btn);if(b)b.textContent=col?'展开 ▼':'收起 ▲';
+  });
 }
+const COLLAPSIBLE=[{key:'colBugs',body:'bug-list',btn:'bug-toggle'},{key:'colKernel',body:'kernel-body',btn:'kernel-toggle'}];
 function toggleSec(key){
   const u=uiState();u[key]=u[key]?0:1;saveUI(u);applyUI();
+  if(key==='colKernel'&&$('kernel-edit'))updateKernelInfo($('kernel-edit').value);
+}
+function updateKernelInfo(txt){
+  const el=$('kernel-info');if(!el)return;
+  txt=txt||'';
+  if(!txt.trim()){el.textContent='未载入';return;}
+  const lines=txt.split(/\n+/).filter(x=>x.trim());
+  const first=lines[0]?lines[0].replace(/^[#【\s]+/,'').slice(0,18):'(无标题)';
+  el.textContent='已载入 · '+txt.length+' 字 · 首行：'+first+(uiState().colKernel?'（已收起）':'');
+}
+function saveKernel(){
+  localStorage.setItem(LS_KERNEL,$('kernel-edit').value);
+  updateKernelInfo($('kernel-edit').value);
+  status('认知内核已保存（'+$('kernel-edit').value.length+' 字）','ok');
+}
+function clearKernel(){
+  if(!confirm('清空当前认知内核？此操作只清本机，已同步到 Gist 的版本不受影响。'))return;
+  localStorage.removeItem(LS_KERNEL);$('kernel-edit').value='';updateKernelInfo('');
+  status('认知内核已清空','ok');
 }
 function ensureOpen(key){
   const u=uiState();
@@ -343,13 +372,12 @@ function pruneTombstones(){
 function saveSetup(){
   const k=$('s-key').value.trim();
   if(k&&!/^已保存/.test(k))localStorage.setItem(LS_KEY,k);
-  localStorage.setItem(LS_KERNEL,$('s-kernel').value);
   const t=$('s-token').value.trim();
   if(t&&!/^已保存/.test(t))localStorage.setItem(LS_TOKEN,t);
   localStorage.setItem(LS_AUTO,$('s-auto').checked?'1':'0');
   status('设置已保存到本机','ok');
 }
-function pickKernel(){$('s-kernel-file').click();}
+function pickKernelFile(){$('kernel-file').click();}
 function pickImport(){$('s-import-file').click();}
 function exportJson(){
   const blob=new Blob([JSON.stringify({app:'错误思维修正',version:1,exportedAt:new Date().toISOString(),
@@ -375,10 +403,10 @@ async function syncToWorkbench(){
   }
 }
 function setupFiles(){
-  $('s-kernel-file').addEventListener('change',e=>{
+  $('kernel-file').addEventListener('change',e=>{
     const f=e.target.files[0];if(!f)return;
     const r=new FileReader();
-    r.onload=()=>{$('s-kernel').value=String(r.result).slice(0,6000);saveSetup();status('认知内核已导入并保存','ok');};
+    r.onload=()=>{$('kernel-edit').value=String(r.result).slice(0,12000);saveKernel();};
     r.readAsText(f,'utf-8');e.target.value='';
   });
   $('s-import-file').addEventListener('change',e=>{
@@ -400,7 +428,8 @@ function setupFiles(){
 function initSetup(){
   const k=localStorage.getItem(LS_KEY)||'';
   if(k)$('s-key').value='已保存（'+k.slice(0,4)+'…'+k.slice(-4)+'）';
-  $('s-kernel').value=localStorage.getItem(LS_KERNEL)||'';
+  const k0=localStorage.getItem(LS_KERNEL)||'';
+  $('kernel-edit').value=k0;updateKernelInfo(k0);
   const t=getToken();
   if(t)$('s-token').value='已保存（'+t.slice(0,4)+'…'+t.slice(-4)+'）';
   $('s-auto').checked=autoSync();
